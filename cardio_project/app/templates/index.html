@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cardiovascular Risk Predictor By Noaman Ayub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="main-flex">
+  <div class="container">
+    <h1>Cardiovascular Risk Prediction By Noaman Ayub</h1>
+    <form method="POST" action="/predict">
+      <input type="text" name="user_name" placeholder="Your Name" required>
+      <input type="number" name="age" placeholder="Age (years)" required>
+      <select name="gender" required>
+        <option value="" disabled selected>Gender</option>
+        <option value="1">Male</option>
+        <option value="2">Female</option>
+      </select>
+      <input type="number" name="height" placeholder="Height (cm)" required>
+      <input type="number" name="weight" placeholder="Weight (kg)" required>
+      <input type="number" name="ap_hi" placeholder="Systolic BP (e.g. 120)" required>
+      <input type="number" name="ap_lo" placeholder="Diastolic BP (e.g. 80)" required>
+      <select name="cholesterol" required>
+        <option value="" disabled selected>Cholesterol</option>
+        <option value="1">Normal</option>
+        <option value="2">Above Normal</option>
+        <option value="3">Well Above Normal</option>
+      </select>
+      <select name="gluc" required>
+        <option value="" disabled selected>Glucose</option>
+        <option value="1">Normal</option>
+        <option value="2">Above Normal</option>
+        <option value="3">Well Above Normal</option>
+      </select>
+      <select name="smoke" required>
+        <option value="0">Non-smoker</option>
+        <option value="1">Smoker</option>
+      </select>
+      <select name="alco" required>
+        <option value="0">Non-drinker Alcohol</option>
+        <option value="1">Drinker Alcohol</option>
+      </select>
+      <select name="active" required>
+        <option value="0">Inactive Exercise</option>
+        <option value="1">Active Exercise</option>
+      </select>
+      <button type="submit">Predict</button>
+    </form>
+
+    {% if result %}
+    <div class="result">
+      <h3>{{ result|safe }}</h3>
+      {% if not is_healthy and plan %}
+        <div>
+          <h4>How to Improve Your Cardiovascular Health:</h4>
+          {{ plan|safe }}
+        </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="previous-container">
+    <h3 style="margin-top:0;">Previous Results</h3>
+    <form id="deleteForm" method="POST" action="/delete_selected" style="margin-bottom:10px;">
+      <button type="submit" style="background:#d9534f;color:#fff;border:none;padding:7px 18px;border-radius:5px;font-weight:bold;cursor:pointer;">Delete Selected</button>
+      <button type="button" onclick="if(confirm('Are you sure you want to clear all records?')){window.location.href='/clear_records'}" style="background:#0275d8;color:#fff;border:none;padding:7px 18px;border-radius:5px;font-weight:bold;cursor:pointer;margin-left:8px;">Clear All</button>
+    </form>
+    <div style="max-height: 400px; overflow-y: auto;">
+      <form id="recordsTableForm">
+        <table style="width:100%; font-size: 13px; border-collapse: collapse;">
+          <thead>
+            <tr style="background:#e1f5fe;">
+              <th style="padding:4px; border:1px solid #cce;"><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+              <th style="padding:4px; border:1px solid #cce;">Name</th>
+              <th style="padding:4px; border:1px solid #cce;">Age</th>
+              <th style="padding:4px; border:1px solid #cce;">Gender</th>
+              <th style="padding:4px; border:1px solid #cce;">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rec in previous_records %}
+            <tr>
+              <td style="padding:4px; border:1px solid #cce;">
+                <input type="checkbox" name="delete_ids" value="{{ loop.index0 }}">
+              </td>
+              <td style="padding:4px; border:1px solid #cce;">{{ rec.user_name }}</td>
+              <td style="padding:4px; border:1px solid #cce;">{{ rec.age }}</td>
+              <td style="padding:4px; border:1px solid #cce;">
+                {% if rec.gender == 1 or rec.gender == '1' %}
+                  Male
+                {% elif rec.gender == 2 or rec.gender == '2' %}
+                  Female
+                {% else %}
+                  Other
+                {% endif %}
+              </td>
+              <td style="padding:4px; border:1px solid #cce;">{{ rec.result }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </form>
+      {% if previous_records|length == 0 %}
+        <div style="color:#888; text-align:center; margin-top:10px;">No previous results.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<div id="customModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close" id="closeModal">&times;</span>
+    <p id="modalMessage"></p>
+  </div>
+</div>
+<script>
+  // Select/Deselect all checkboxes
+  function toggleAll(source) {
+    checkboxes = document.getElementsByName('delete_ids');
+    for(var i=0, n=checkboxes.length;i<n;i++) {
+      checkboxes[i].checked = source.checked;
+    }
+  }
+  // Submit selected for deletion
+  document.getElementById('deleteForm').onsubmit = function(e) {
+    e.preventDefault();
+    var form = document.getElementById('recordsTableForm');
+    var checkboxes = form.querySelectorAll('input[name="delete_ids"]:checked');
+    if (checkboxes.length === 0) {
+      alert('Please select at least one record to delete.');
+      return false;
+    }
+    // Create a form and submit
+    var postForm = document.createElement('form');
+    postForm.method = 'POST';
+    postForm.action = '/delete_selected';
+    checkboxes.forEach(function(cb) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'delete_ids';
+      input.value = cb.value;
+      postForm.appendChild(input);
+    });
+    document.body.appendChild(postForm);
+    postForm.submit();
+  }
+  {% if result %}
+    window.onload = function() {
+      {% if is_healthy %}
+        alert("Congratulations {{ user_name }}! You are healthy.");
+      {% else %}
+        alert("Dear {{ user_name }}, your result: {{ result|striptags }}");
+      {% endif %}
+    }
+  {% endif %}
+</script>
+</body>
+</html>
